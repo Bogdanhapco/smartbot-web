@@ -6,8 +6,17 @@ import math
 import random
 from PIL import Image, ImageDraw
 import streamlit as st
+import requests
+import io
 
-# --- KNOWLEDGE ENGINE (Enhanced for reasoning) ---
+# --- Groq API Key (your key pasted here) ---
+GROQ_API_KEY = "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"
+
+# --- Groq Endpoints ---
+GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_IMAGE_URL = "https://api.groq.com/openai/v1/images/generations"
+
+# --- KNOWLEDGE ENGINE ---
 class KnowledgeEngine:
     def __init__(self):
         self.cache = {}
@@ -153,7 +162,7 @@ class PromptParser:
         
         return scene
 
-# --- RENDERER WITH ADVANCED TEXTURES (Ported to Pillow) --- (Kept the same, no changes here)
+# --- RENDERER WITH ADVANCED TEXTURES (Ported to Pillow) ---
 class AdvancedRenderer:
     def __init__(self, width=500, height=500, resolution='1080p'):
         self.width = width
@@ -1118,25 +1127,59 @@ def generate_story(topic):
     story = f"{random.choice(starters)}, {topic} {random.choice(middles)} {fact[:100]}... {random.choice(ends)}"
     return story
 
-# --- WEB APP WITH STREAMLIT (Updated with games, reasoning, generating) ---
+# --- New: Chat with Groq LLM ---
+def chat_with_groq(message):
+    headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
+    payload = {
+        "model": "llama3-70b-8192",  # Fast and smart
+        "messages": [{"role": "user", "content": message}],
+        "temperature": 0.7,
+        "max_tokens": 500
+    }
+    response = requests.post(GROQ_CHAT_URL, headers=headers, json=payload)
+    if response.status_code == 200:
+        return response.json()['choices'][0]['message']['content']
+    else:
+        return "Error: Could not get response from Groq."
+
+# --- New: Generate image with Groq Flux.1-schnell ---
+def generate_image_with_groq(prompt):
+    headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
+    payload = {
+        "model": "flux-schnell",
+        "prompt": prompt,
+        "size": "1024x1024"
+    }
+    response = requests.post(GROQ_IMAGE_URL, headers=headers, json=payload)
+    if response.status_code == 200:
+        image_url = response.json()['data'][0]['url']
+        img_response = requests.get(image_url)
+        return Image.open(io.BytesIO(img_response.content))
+    else:
+        return None
+
+# --- WEB APP WITH STREAMLIT ---
 st.set_page_config(page_title="SmartBot Advanced Web Edition", layout="wide")
 
 st.title("🤖 SmartBot Advanced v27 - Web Edition")
 st.markdown("""
 ⚡ CAPABILITIES:
-• Spatial relationship understanding (e.g., "dog in brown house")
-• Resolution control: 480p to 8k (detail level)
+• Natural chat and conversation
+• Spatial relationship understanding (e.g., "dog in brown house" for drawing)
+• Resolution control: 480p to 8k (for drawings)
 • Knowledge retrieval from Wikipedia with step-by-step reasoning
 • Generate simple stories (e.g., "generate story about mountains")
 • Play games (e.g., "play guess number")
+• Real AI image generation with Flux.1-schnell (e.g., "generate image of a cat in space")
 
 📝 EXAMPLES:
-• "draw a red car on the road at sunset"
-• "create a brown dog in a house"
-• "show me a boat on water with mountains at night"
+• "Hi, how are you?"
+• "Tell me a joke"
 • "What is Python programming?"
-• "generate story about a cat"
+• "draw a red car on the road at sunset"
+• "generate story about a dog"
 • "play guess number"
+• "generate image of a cartoon cactus on the toilet with a microphone"
 """)
 
 # Session state for chat history and game state
@@ -1157,7 +1200,7 @@ for message in st.session_state.messages:
 # Input
 prompt = st.chat_input("Type your command...")
 
-resolution = st.selectbox("Resolution (for images)", ['480p', '720p', '1080p', '4k', '8k'], index=2)
+resolution = st.selectbox("Resolution (for procedural drawings)", ['480p', '720p', '1080p', '4k', '8k'], index=2)
 
 if prompt:
     # User message
@@ -1167,17 +1210,36 @@ if prompt:
     
     with st.spinner("Processing..."):
         query_lower = prompt.lower()
-        image_triggers = ["draw", "create", "generate image", "show", "render", "make"]
+        
+        image_triggers = ["draw", "create", "show", "render", "make"]
+        api_image_triggers = ["generate image", "flux image", "ai image"]
         story_triggers = ["generate story", "tell story", "create story"]
         game_triggers = ["play guess number", "play game"]
         
-        is_image = any(t in query_lower for t in image_triggers)
+        is_api_image = any(t in query_lower for t in api_image_triggers)
+        is_image = any(t in query_lower for t in image_triggers) and not is_api_image
         is_story = any(t in query_lower for t in story_triggers)
         is_game = any(t in query_lower for t in game_triggers)
         
-        if is_image:
+        if is_api_image:
+            desc = prompt.lower().replace("generate image", "").replace("flux image", "").replace("ai image", "").strip()
+            img = generate_image_with_groq(desc)
+            if img:
+                response = f"✓ Flux.1-schnell generated: {desc}"
+                st.session_state.messages.append({"role": "assistant", "content": response, "image": img})
+                with st.chat_message("assistant"):
+                    st.markdown(response)
+                    st.image(img)
+                    st.download_button("Download Image", img.tobytes(), "flux_image.png", "image/png")
+            else:
+                response = "Error: Could not generate image. Check API key or quota."
+                st.session_state.messages.append({"role": "assistant", "content": response})
+                with st.chat_message("assistant"):
+                    st.markdown(response)
+        
+        elif is_image:
             scene = PromptParser().parse(prompt)
-            sizes = {'480p': (400, 300), '720p': (640, 480), '1080p': (800, 600), '4k': (800, 600), '8k': (800, 600)}  # Limit size for web
+            sizes = {'480p': (400, 300), '720p': (640, 480), '1080p': (800, 600), '4k': (800, 600), '8k': (800, 600)}  # Limit size for web, detail controls quality
             width, height = sizes[resolution]
             renderer = AdvancedRenderer(width=width, height=height, resolution=resolution)
             img = renderer.render_scene(scene)
@@ -1187,17 +1249,16 @@ if prompt:
             with st.chat_message("assistant"):
                 st.markdown(response)
                 st.image(img)
-                st.download_button("Download Image", data=img.tobytes(), file_name="scene.png", mime="image/png")
+                st.download_button("Download Image", img.tobytes(), "scene.png", "image/png")
         
         elif is_story:
-            topic = prompt.lower().replace("generate story about", "").strip()
+            topic = prompt.lower().replace("generate story about", "").replace("tell story about", "").replace("create story about", "").strip()
             story = generate_story(topic)
             st.session_state.messages.append({"role": "assistant", "content": story})
             with st.chat_message("assistant"):
                 st.markdown(story)
         
         elif is_game or st.session_state.game_active:
-            # Simple number guessing game
             if not st.session_state.game_active:
                 st.session_state.game_active = True
                 st.session_state.secret_number = random.randint(1, 100)
@@ -1226,8 +1287,8 @@ if prompt:
                 st.markdown(response)
         
         else:
-            # Enhanced knowledge with reasoning
-            answer = KnowledgeEngine().reason_and_respond(prompt)
+            # Natural chat with Groq LLM
+            answer = chat_with_groq(prompt)
             st.session_state.messages.append({"role": "assistant", "content": answer})
             with st.chat_message("assistant"):
                 st.markdown(answer)
