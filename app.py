@@ -10,7 +10,7 @@ import requests
 import io
 
 # --- Groq API Key (your key is already here) ---
-GROQ_API_KEY = "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"
+GROQ_API_KEY = "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"
 
 # --- Groq Endpoints ---
 GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions"
@@ -179,4 +179,5 @@ if prompt:
                 st.session_state.messages.append({"role": "assistant", "content": response})
                 with st.chat_message("assistant"):
                     st.markdown(response)
+
 
