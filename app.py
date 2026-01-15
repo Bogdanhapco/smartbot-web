@@ -10,7 +10,7 @@ import requests
 import io
 
 # --- Groq API Key (your key is already here) ---
-GROQ_API_KEY = "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"
+GROQ_API_KEY = "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"
 
 # --- Groq Endpoints ---
 GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions"
@@ -116,7 +116,7 @@ st.markdown("""
 • Natural conversation (ask anything!)
 • Knowledge from Wikipedia with reasoning
 • Procedural drawing ("draw a red car")
-• Real AI image generation with Flux.1-schnell ("generate image of...")
+• Real AI image generation with SmartBot Ludy Model ("generate image of...")
 """)
 
 # Chat history
@@ -179,3 +179,4 @@ if prompt:
                 st.session_state.messages.append({"role": "assistant", "content": response})
                 with st.chat_message("assistant"):
                     st.markdown(response)
+
