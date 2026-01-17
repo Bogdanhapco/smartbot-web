@@ -111,43 +111,32 @@ COLORS = {
 
 # --- TEXT TO SPEECH FUNCTION ---
 def text_to_speech_button(text, key):
-    """Add a button to read text aloud using browser's speech synthesis"""
+    """Add a subtle speaker icon to read text aloud"""
     # Clean text for speech
-    clean_text = re.sub(r'\*\*|__|~~', '', text)  # Remove markdown
+    clean_text = re.sub(r'\*\*|__|~~|#', '', text)  # Remove markdown
     clean_text = re.sub(r'\n+', '. ', clean_text)  # Replace newlines with pauses
+    clean_text = clean_text.replace('`', '').replace('"', '\\"')  # Escape quotes
     
-    # Create unique button
+    # Subtle icon button
     button_html = f"""
     <button onclick="speakText{key}()" style="
-        background-color: #4CAF50;
+        background: transparent;
         border: none;
-        color: white;
-        padding: 8px 16px;
-        text-align: center;
-        text-decoration: none;
-        display: inline-block;
-        font-size: 14px;
-        margin: 4px 2px;
+        color: #888;
+        padding: 4px;
         cursor: pointer;
-        border-radius: 12px;
-    ">
-        🔊 Read Aloud
+        font-size: 16px;
+        transition: color 0.2s;
+    " onmouseover="this.style.color='#333'" onmouseout="this.style.color='#888'" title="Read aloud">
+        🔊
     </button>
     
     <script>
         function speakText{key}() {{
-            const text = `{clean_text}`;
-            
-            // Cancel any ongoing speech
+            const text = "{clean_text}";
             window.speechSynthesis.cancel();
-            
-            // Create speech
             const utterance = new SpeechSynthesisUtterance(text);
-            utterance.rate = 0.9;
-            utterance.pitch = 1.0;
-            utterance.volume = 1.0;
-            
-            // Speak
+            utterance.rate = 0.95;
             window.speechSynthesis.speak(utterance);
         }}
     </script>
