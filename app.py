@@ -12,16 +12,29 @@ import streamlit as st
 # --- CONFIGURATION ---
 st.set_page_config(page_title="SmartBot AI Pro", layout="centered")
 
-# Add custom CSS for voice button
+# Add custom CSS
 st.markdown("""
 <style>
-.stButton>button {
-    width: 100%;
-}
+    /* Move chat input to bottom */
+    .stChatFloatingInputContainer {
+        bottom: 20px;
+    }
+    
+    /* Style improvements */
+    .stChatMessage {
+        padding: 1rem;
+        border-radius: 0.5rem;
+    }
+    
+    /* Button styling */
+    .stButton>button {
+        border-radius: 20px;
+        padding: 0.5rem 1rem;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-# --- COMPREHENSIVE OBJECT DATABASE (500+ objects) ---
+# --- COMPREHENSIVE OBJECT DATABASE (100+ objects) ---
 OBJECTS = {
     'car': ['car', 'vehicle'], 'truck': ['truck'], 'bus': ['bus'], 'train': ['train'],
     'airplane': ['airplane', 'plane'], 'helicopter': ['helicopter'], 'boat': ['boat', 'ship'],
@@ -96,6 +109,51 @@ COLORS = {
     'white': (245, 245, 245), 'gray': (128, 128, 128), 'gold': (255, 215, 0),
 }
 
+# --- TEXT TO SPEECH FUNCTION ---
+def text_to_speech_button(text, key):
+    """Add a button to read text aloud using browser's speech synthesis"""
+    # Clean text for speech
+    clean_text = re.sub(r'\*\*|__|~~', '', text)  # Remove markdown
+    clean_text = re.sub(r'\n+', '. ', clean_text)  # Replace newlines with pauses
+    
+    # Create unique button
+    button_html = f"""
+    <button onclick="speakText{key}()" style="
+        background-color: #4CAF50;
+        border: none;
+        color: white;
+        padding: 8px 16px;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 14px;
+        margin: 4px 2px;
+        cursor: pointer;
+        border-radius: 12px;
+    ">
+        🔊 Read Aloud
+    </button>
+    
+    <script>
+        function speakText{key}() {{
+            const text = `{clean_text}`;
+            
+            // Cancel any ongoing speech
+            window.speechSynthesis.cancel();
+            
+            // Create speech
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.rate = 0.9;
+            utterance.pitch = 1.0;
+            utterance.volume = 1.0;
+            
+            // Speak
+            window.speechSynthesis.speak(utterance);
+        }}
+    </script>
+    """
+    st.markdown(button_html, unsafe_allow_html=True)
+
 # --- ADVANCED CHAT ENGINE ---
 class SmartChatEngine:
     def __init__(self):
@@ -124,22 +182,22 @@ class SmartChatEngine:
         
         # Analyze question type
         if 'why' in query_lower or 'how' in query_lower:
-            steps.append("📊 Detected explanatory question - searching for causal relationships")
+            steps.append("Detected explanatory question - searching for causal relationships")
         elif 'compare' in query_lower or 'difference' in query_lower:
-            steps.append("⚖️ Detected comparison query - analyzing multiple factors")
+            steps.append("Detected comparison query - analyzing multiple factors")
         elif 'best' in query_lower or 'recommend' in query_lower:
-            steps.append("💡 Detected recommendation request - evaluating options")
+            steps.append("Detected recommendation request - evaluating options")
         else:
-            steps.append("🔍 Analyzing query structure and intent")
+            steps.append("Analyzing query structure and intent")
         
         # Search for information
         web_result = self.search_web(query)
         if web_result:
-            steps.append("🔎 Retrieved relevant data from web sources")
-            steps.append("🧠 Synthesizing information with logical inference")
+            steps.append("Retrieved relevant data from web sources")
+            steps.append("Synthesizing information with logical inference")
             return steps, web_result
         else:
-            steps.append("💭 Using existing knowledge base for response")
+            steps.append("Using existing knowledge base for response")
             return steps, None
     
     def respond(self, user_input, model_type):
@@ -160,28 +218,28 @@ class SmartChatEngine:
         # Identity
         if 'who are you' in user_lower or 'what are you' in user_lower:
             return (f"I'm SmartBot {model_type}, an advanced AI assistant! I can:\n\n"
-                   "✨ Have natural conversations\n"
-                   "🎨 Generate images from 100+ objects\n"
-                   "🔍 Search the web for current information\n"
-                   "🧠 Perform advanced reasoning (Pro model)\n"
-                   "🎙️ Understand voice input\n\n"
+                   "- Have natural conversations\n"
+                   "- Generate images from 100+ objects\n"
+                   "- Search the web for current information\n"
+                   "- Perform advanced reasoning (Pro model)\n"
+                   "- Read responses aloud\n\n"
                    "Try asking me something or say 'generate an image of...'")
         
         # Capabilities
         if 'what can you do' in user_lower or 'capabilities' in user_lower or 'help' in user_lower:
             return """**SmartBot Capabilities:**
 
-💬 **Conversation**: Natural dialogue with context awareness
-🎨 **Image Creation**: 100+ objects including vehicles, animals, buildings, nature, and more
-🔍 **Web Search**: Real-time information from the internet
-🧠 **Advanced Reasoning**: Step-by-step logical analysis (Pro model only)
-🎙️ **Voice Input**: Click the microphone to speak your questions
+**Conversation**: Natural dialogue with context awareness
+**Image Creation**: 100+ objects including vehicles, animals, buildings, nature, and more
+**Web Search**: Real-time information from the internet
+**Advanced Reasoning**: Step-by-step logical analysis (Pro model only)
+**Text-to-Speech**: Click 'Read Aloud' to hear responses
 
 **Try these examples:**
-• "What is quantum computing?"
-• "Generate a sunset with mountains and a lake"
-• "Compare electric vs gas cars"
-• "Tell me about recent AI developments" """
+- "What is quantum computing?"
+- "Generate a sunset with mountains and a lake"
+- "Compare electric vs gas cars"
+- "Tell me about recent AI developments" """
         
         # Pro Model Reasoning
         if model_type == "Pro":
@@ -189,11 +247,11 @@ class SmartChatEngine:
             if any(kw in user_lower for kw in reasoning_keywords):
                 steps, web_data = self.reason_step_by_step(user_input)
                 
-                response = "**🧠 Advanced Reasoning Process:**\n\n"
+                response = "**Advanced Reasoning Process:**\n\n"
                 for i, step in enumerate(steps, 1):
                     response += f"{i}. {step}\n"
                 
-                response += "\n**📋 Conclusion:**\n\n"
+                response += "\n**Conclusion:**\n\n"
                 if web_data:
                     response += f"{web_data}\n\n*This response combines web search with logical analysis.*"
                 else:
@@ -208,7 +266,7 @@ class SmartChatEngine:
             result = self.search_web(user_input)
             if result:
                 if model_type == "Pro":
-                    return f"**🔎 Web Search Results:**\n\n{result}\n\n*Verified from multiple sources*"
+                    return f"**Web Search Results:**\n\n{result}\n\n*Verified from multiple sources*"
                 else:
                     return f"Here's what I found: {result}"
         
@@ -472,16 +530,16 @@ def main():
         st.markdown("---")
         st.markdown("### Model Features")
         if "Flash" in model:
-            st.info("ðŸš€ **Speed**: Ultra-fast\n🧠 **Reasoning**: Basic\n🎨 **Images**: Quick render")
+            st.info("**Speed**: Ultra-fast\n\n**Reasoning**: Basic\n\n**Images**: Quick render")
         else:
-            st.success("ðŸš€ **Speed**: Optimized\n🧠 **Reasoning**: Advanced with web search\n🎨 **Images**: High quality")
+            st.success("**Speed**: Optimized\n\n**Reasoning**: Advanced with web search\n\n**Images**: High quality")
         
         st.markdown("---")
         st.markdown("### Voice Input")
-        st.caption("Enable microphone access for voice input")
+        st.caption("Use 'Read Aloud' button on responses to hear them spoken")
     
     # Header
-    st.title("ðŸ¤– SmartBot AI")
+    st.title("🤖 SmartBot AI")
     st.caption(f"Powered by {model} | Advanced Reasoning & Image Generation")
     
     # Initialize session
@@ -491,22 +549,17 @@ def main():
         st.session_state.engine = SmartChatEngine()
     
     # Display chat history
-    for msg in st.session_state.messages:
+    for idx, msg in enumerate(st.session_state.messages):
         with st.chat_message(msg["role"]):
             st.write(msg["content"])
             if "image" in msg:
                 st.image(msg["image"], caption="Generated Image", use_container_width=True)
+            # Add text-to-speech for assistant messages
+            if msg["role"] == "assistant" and "image" not in msg:
+                text_to_speech_button(msg["content"], f"msg_{idx}")
     
-    # Input options
-    col1, col2 = st.columns([5, 1])
-    
-    with col1:
-        user_input = st.chat_input("Ask anything or request an image...")
-    
-    with col2:
-        voice_placeholder = st.empty()
-        if voice_placeholder.button("ðŸŽ™ï¸", help="Voice input (speak your request)"):
-            st.info("💬 Voice feature: Please type 'generate...' or ask your question in text")
+    # Chat input at bottom
+    user_input = st.chat_input("Ask anything or request an image...")
     
     # Process input
     if user_input:
@@ -523,7 +576,7 @@ def main():
         if is_image:
             # Image generation
             with st.chat_message("assistant"):
-                with st.spinner("🎨 Creating your image..."):
+                with st.spinner("Creating your image..."):
                     # Set resolution
                     if "Pro" in model:
                         width, height = 800, 600
@@ -535,7 +588,7 @@ def main():
                     renderer = ImageRenderer(width, height)
                     scene = renderer.parse_prompt(user_input)
                     
-                    st.write(f"📸 Generating: {', '.join(scene['objects'][:5])}... ({scene['time']}, {scene['weather']})")
+                    st.write(f"Generating: {', '.join(scene['objects'][:5])}... ({scene['time']}, {scene['weather']})")
                     
                     # Progress bar simulation
                     progress = st.progress(0)
@@ -558,7 +611,7 @@ def main():
                     
                     # Final result
                     progress.empty()
-                    img_placeholder.image(final_img, caption=f"✓ Complete | {model}", use_container_width=True)
+                    img_placeholder.image(final_img, caption=f"Complete | {model}", use_container_width=True)
                     
                     response = f"Here's your image! It includes: {', '.join(scene['objects'][:10])}"
                     st.session_state.messages.append({
@@ -569,10 +622,14 @@ def main():
         else:
             # Chat response
             with st.chat_message("assistant"):
-                with st.spinner(f"🤔 {model} thinking..."):
+                with st.spinner(f"{model} thinking..."):
                     model_type = "Pro" if "Pro" in model else "Flash"
                     response = st.session_state.engine.respond(user_input, model_type)
                     st.markdown(response)
+                    
+                    # Add read aloud button
+                    text_to_speech_button(response, f"new_msg")
+                    
                     st.session_state.messages.append({"role": "assistant", "content": response})
 
 if __name__ == "__main__":
