@@ -124,22 +124,22 @@ class SmartChatEngine:
         
         # Analyze question type
         if 'why' in query_lower or 'how' in query_lower:
-            steps.append("ðŸ"Š Detected explanatory question - searching for causal relationships")
+            steps.append("📊 Detected explanatory question - searching for causal relationships")
         elif 'compare' in query_lower or 'difference' in query_lower:
-            steps.append("âš–ï¸ Detected comparison query - analyzing multiple factors")
+            steps.append("⚖️ Detected comparison query - analyzing multiple factors")
         elif 'best' in query_lower or 'recommend' in query_lower:
-            steps.append("ðŸ'¡ Detected recommendation request - evaluating options")
+            steps.append("💡 Detected recommendation request - evaluating options")
         else:
             steps.append("🔍 Analyzing query structure and intent")
         
         # Search for information
         web_result = self.search_web(query)
         if web_result:
-            steps.append(f"ðŸ" Retrieved relevant data from web sources")
+            steps.append("🔎 Retrieved relevant data from web sources")
             steps.append("🧠 Synthesizing information with logical inference")
             return steps, web_result
         else:
-            steps.append("ðŸ'­ Using existing knowledge base for response")
+            steps.append("💭 Using existing knowledge base for response")
             return steps, None
     
     def respond(self, user_input, model_type):
@@ -160,22 +160,22 @@ class SmartChatEngine:
         # Identity
         if 'who are you' in user_lower or 'what are you' in user_lower:
             return (f"I'm SmartBot {model_type}, an advanced AI assistant! I can:\n\n"
-                   "âœ¨ Have natural conversations\n"
-                   "🎨 Generate images from 500+ objects\n"
+                   "✨ Have natural conversations\n"
+                   "🎨 Generate images from 100+ objects\n"
                    "🔍 Search the web for current information\n"
                    "🧠 Perform advanced reasoning (Pro model)\n"
-                   "ðŸŽ™ï¸ Understand voice input\n\n"
+                   "🎙️ Understand voice input\n\n"
                    "Try asking me something or say 'generate an image of...'")
         
         # Capabilities
         if 'what can you do' in user_lower or 'capabilities' in user_lower or 'help' in user_lower:
             return """**SmartBot Capabilities:**
 
-ðŸ'¬ **Conversation**: Natural dialogue with context awareness
-🎨 **Image Creation**: 500+ objects including vehicles, animals, buildings, nature, and more
+💬 **Conversation**: Natural dialogue with context awareness
+🎨 **Image Creation**: 100+ objects including vehicles, animals, buildings, nature, and more
 🔍 **Web Search**: Real-time information from the internet
 🧠 **Advanced Reasoning**: Step-by-step logical analysis (Pro model only)
-ðŸŽ™ï¸ **Voice Input**: Click the microphone to speak your questions
+🎙️ **Voice Input**: Click the microphone to speak your questions
 
 **Try these examples:**
 • "What is quantum computing?"
@@ -208,7 +208,7 @@ class SmartChatEngine:
             result = self.search_web(user_input)
             if result:
                 if model_type == "Pro":
-                    return f"**ðŸ" Web Search Results:**\n\n{result}\n\n*Verified from multiple sources*"
+                    return f"**🔎 Web Search Results:**\n\n{result}\n\n*Verified from multiple sources*"
                 else:
                     return f"Here's what I found: {result}"
         
@@ -535,7 +535,7 @@ def main():
                     renderer = ImageRenderer(width, height)
                     scene = renderer.parse_prompt(user_input)
                     
-                    st.write(f"ðŸ"¸ Generating: {', '.join(scene['objects'][:5])}... ({scene['time']}, {scene['weather']})")
+                    st.write(f"📸 Generating: {', '.join(scene['objects'][:5])}... ({scene['time']}, {scene['weather']})")
                     
                     # Progress bar simulation
                     progress = st.progress(0)
