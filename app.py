@@ -8,6 +8,8 @@ import random
 import time
 from PIL import Image, ImageDraw, ImageFilter
 import streamlit as st
+from gtts import gTTS
+import base64
 
 # --- CONFIGURATION ---
 st.set_page_config(page_title="SmartBot AI Pro", layout="centered")
@@ -111,37 +113,38 @@ COLORS = {
 
 # --- TEXT TO SPEECH FUNCTION ---
 def text_to_speech_button(text, key):
-    """Add a subtle speaker icon to read text aloud"""
+    """Add audio player with gTTS"""
     # Clean text for speech
-    clean_text = re.sub(r'\*\*|__|~~|#', '', text)  # Remove markdown
-    clean_text = re.sub(r'\n+', '. ', clean_text)  # Replace newlines with pauses
-    clean_text = clean_text.replace('`', '').replace('"', '\\"')  # Escape quotes
+    clean_text = re.sub(r'\*\*|__|~~|#', '', text)
+    clean_text = re.sub(r'\n+', ' ', clean_text)
+    clean_text = clean_text[:500]  # Limit length for speed
     
-    # Subtle icon button
-    button_html = f"""
-    <button onclick="speakText{key}()" style="
-        background: transparent;
-        border: none;
-        color: #888;
-        padding: 4px;
-        cursor: pointer;
-        font-size: 16px;
-        transition: color 0.2s;
-    " onmouseover="this.style.color='#333'" onmouseout="this.style.color='#888'" title="Read aloud">
-        🔊
-    </button>
-    
-    <script>
-        function speakText{key}() {{
-            const text = "{clean_text}";
-            window.speechSynthesis.cancel();
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.rate = 0.95;
-            window.speechSynthesis.speak(utterance);
-        }}
-    </script>
-    """
-    st.markdown(button_html, unsafe_allow_html=True)
+    try:
+        # Generate speech
+        tts = gTTS(text=clean_text, lang='en', slow=False)
+        
+        # Save to temporary file
+        audio_file = f"temp_audio_{key}.mp3"
+        tts.save(audio_file)
+        
+        # Read and encode audio
+        with open(audio_file, "rb") as f:
+            audio_bytes = f.read()
+        
+        # Clean up temp file
+        os.remove(audio_file)
+        
+        # Create audio player
+        audio_base64 = base64.b64encode(audio_bytes).decode()
+        audio_html = f"""
+        <audio controls style="width: 200px; height: 30px;">
+            <source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3">
+        </audio>
+        """
+        st.markdown(audio_html, unsafe_allow_html=True)
+        
+    except Exception as e:
+        st.caption("🔇 Audio unavailable")
 
 # --- ADVANCED CHAT ENGINE ---
 class SmartChatEngine:
