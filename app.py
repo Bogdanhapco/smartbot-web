@@ -10,144 +10,128 @@ from gtts import gTTS
 import streamlit as st
 
 # --- CONFIGURATION ---
-st.set_page_config(page_title="SmartBot AI - Ludy Engine", layout="centered", page_icon="🤖")
+st.set_page_config(page_title="SmartBot AI", layout="centered", page_icon="🤖")
 
-# --- VOICE ENGINE ---
-def speak_text(text):
-    try:
-        tts = gTTS(text=text, lang='en')
-        tts.save("speech.mp3")
-        return "speech.mp3"
-    except:
-        return None
-
-# --- SMARTBOT BRAIN (Reasoning & Web) ---
+# --- DYNAMIC KNOWLEDGE & HUMAN-LIKE SUMMARY ---
 class SmartBotBrain:
     def __init__(self):
-        self.history = []
+        self.context_history = []
 
-    def search_web(self, query, model):
-        clean_q = re.sub(r'(generate|draw|search|imagine|arata-mi|fa-mi|ce este|cine e)', '', query.lower()).strip()
+    def fetch_web_data(self, topic):
         try:
-            url = f"https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch={clean_q.replace(' ', '%20')}&format=json"
+            # Clean the topic for Wikipedia
+            clean_topic = re.sub(r'(who is|what is|tell me about|search for|define)', '', topic.lower()).strip()
+            url = f"https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro&explaintext&titles={clean_topic.replace(' ', '%20')}&format=json&redirects=1"
             with urllib.request.urlopen(url, timeout=5) as r:
                 data = json.loads(r.read().decode())
-                if not data['query']['search']: return None, None
-                title = data['query']['search'][0]['title']
-            
-            sum_url = f"https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro&explaintext&titles={title.replace(' ', '_')}&format=json"
-            with urllib.request.urlopen(sum_url, timeout=5) as r:
-                p_data = json.loads(r.read().decode())
-                page = list(p_data['query']['pages'].values())[0]
-                return page.get('extract', ""), title
-        except: return None, None
+                pages = data.get('query', {}).get('pages', {})
+                page = next(iter(pages.values()))
+                return page.get('extract', "")
+        except:
+            return ""
 
-    def reason_and_respond(self, prompt, model):
-        # Personality Guard
-        if "who are you" in prompt.lower():
-            return "I am SmartBot. My creative heart is the Ludy Image Engine."
+    def human_summarize(self, text):
+        if not text: return "I searched my database but couldn't find a clear answer. Should we try drawing it instead?"
         
-        # Web Search & Reasoning Step
-        info, title = self.search_web(prompt, model)
-        if info:
-            reasoning = f"**Reasoning Steps:**\n1. Identified core topic: '{title}'\n2. Scanning global knowledge base...\n3. Synthesizing unique summary for {model} mode."
-            summary = " ".join(re.split(r'(?<=[.!?]) +', info)[:5 if "Pro" in model else 2])
-            return f"{reasoning}\n\n**SmartBot Answer:** {summary}"
+        # Split into sentences
+        sentences = re.split(r'(?<=[.!?]) +', text)
         
-        return "I'm processing that as a conversational request. Let's talk!"
+        # Pick 3-4 sentences but mix them up to sound "Unique" and human
+        intro = ["So, basically, ", "Here's what I found: ", "Interestingly, ", "From what I can tell, "]
+        summary = random.choice(intro) + " ".join(sentences[:3])
+        
+        if len(sentences) > 3:
+            summary += f"\n\nBasically, the main thing to remember is {sentences[3 if len(sentences) > 3 else 0]}"
+        
+        return summary
 
-# --- LUDY IMAGE GENERATOR (Textured Rendering) ---
+    def get_response(self, prompt):
+        # 1. Check if it's a question (Who is/What is/etc)
+        if any(w in prompt.lower() for w in ["who is", "what is", "tell me about", "define", "how does"]):
+            raw_data = self.fetch_web_data(prompt)
+            human_answer = self.human_summarize(raw_data)
+            return f"🔎 **SmartBot Search Result:**\n\n{human_answer}"
+        
+        # 2. Otherwise, talk normally
+        responses = [
+            "That's a great point! Tell me more.",
+            "I see what you mean. I'm listening!",
+            "Interesting... how does that make you feel?",
+            "I'm here for it! What's our next move?"
+        ]
+        return random.choice(responses)
+
+# --- LUDY GENERATOR (TEXTURE ENGINE) ---
 class LudyGenerator:
-    def __init__(self, style):
-        self.style = style
-
-    def apply_textures(self, draw, x, y, w, h, base_color, type="wood"):
-        for i in range(h):
-            for j in range(w):
-                noise = random.randint(-15, 15)
-                r = max(0, min(255, base_color[0] + noise))
-                g = max(0, min(255, base_color[1] + noise))
-                b = max(0, min(255, base_color[2] + noise))
-                if type == "brick" and (i % 5 == 0 or j % 15 == 0): # Brick lines
-                    draw.point((x+j, y+i), fill=(80, 80, 80))
-                else:
-                    draw.point((x+j, y+i), fill=(r, g, b))
+    def add_grain_texture(self, draw, shape_coords, color, type="wood"):
+        # Procedural texture logic: adds dots and lines to make surfaces look real
+        r, g, b = color
+        for _ in range(300):
+            tx = random.randint(shape_coords[0], shape_coords[2])
+            ty = random.randint(shape_coords[1], shape_coords[3])
+            variation = random.randint(-20, 20)
+            draw.point((tx, ty), fill=(max(0,r+variation), max(0,g+variation), max(0,b+variation)))
 
     def generate(self, prompt, model):
         res = 1024 if "Pro" in model else 512
-        img = Image.new('RGB', (res, res), (30, 30, 35))
+        img = Image.new('RGB', (res, res), (30, 35, 45))
         draw = ImageDraw.Draw(img)
-        p = prompt.lower()
-
-        # Backgrounds
-        draw.rectangle([0, 0, res, res//2], fill=(135, 206, 235) if "night" not in p else (10, 10, 30))
+        
+        # Ground and Sky with basic gradients
+        draw.rectangle([0, 0, res, res//2], fill=(135, 206, 250)) # Sky
         draw.rectangle([0, res//2, res, res], fill=(34, 139, 34)) # Grass
-
-        # Object: Textured House
-        if "house" in p:
-            # Wall
-            self.apply_textures(draw, res//4, res//2-100, 200, 100, (150, 75, 0), "wood")
-            # Roof
-            draw.polygon([(res//4-20, res//2-100), (res//4+100, res//2-180), (res//4+220, res//2-100)], fill=(100, 40, 40))
         
-        # Object: Car
-        if "car" in p:
-            draw.rectangle([res//2, res-120, res//2+150, res-70], fill="red", outline="black")
-            draw.ellipse([res//2+10, res-80, res//2+40, res-50], fill="black")
-            draw.ellipse([res//2+100, res-80, res//2+130, res-50], fill="black")
+        # Apply texture to the grass
+        for _ in range(1000):
+            gx, gy = random.randint(0, res), random.randint(res//2, res)
+            draw.line([(gx, gy), (gx, gy-5)], fill=(20, 100, 20), width=1)
 
-        # Post-Processing
-        if self.style == "Cinematic": img = ImageEnhance.Contrast(img).enhance(1.6)
-        
-        # Watermark
-        draw.text((20, res-40), "Generated with Ludy 1.2 Texture-Engine", fill=(255, 255, 255))
+        # Smart Object detection (Example: House)
+        if "house" in prompt.lower():
+            coords = [res//4, res//2-100, res//4+200, res//2+50]
+            draw.rectangle(coords, fill=(139, 69, 19))
+            self.add_grain_texture(draw, coords, (139, 69, 19)) # Add Wood Grain
+            draw.polygon([(res//4-20, res//2-100), (res//4+100, res//2-180), (res//4+220, res//2-100)], fill=(150, 0, 0)) # Roof
+
+        # Branding
+        draw.text((10, res-30), "Ludy 1.2 Texture-Engine", fill="white")
         return img
 
-# --- UI LAYOUT ---
-with st.sidebar:
-    st.image("https://cdn-icons-png.flaticon.com/512/4712/4712139.png", width=80)
-    st.title("SmartBot Control")
-    model_choice = st.selectbox("Intelligence Level", ["SmartBot Flash", "SmartBot Pro"])
-    style_choice = st.selectbox("Ludy Style", ["Photorealistic", "Cinematic", "Cyberpunk", "Oil Painting"])
-    use_voice = st.checkbox("Enable Voice Responses", value=True)
-
-st.title(f"🤖 {model_choice}")
-
-if "messages" not in st.session_state: st.session_state.messages = []
+# --- THE APP INTERFACE ---
 if "brain" not in st.session_state: st.session_state.brain = SmartBotBrain()
+if "messages" not in st.session_state: st.session_state.messages = []
 
+st.title("🤖 SmartBot AI")
+st.caption("Powered by the Ludy Image Engine")
+
+# Display Chat History
 for m in st.session_state.messages:
     with st.chat_message(m["role"]):
-        st.markdown(m["content"])
+        st.write(m["content"])
         if "image" in m: st.image(m["image"])
 
-if prompt := st.chat_input("Talk to SmartBot..."):
+# Input
+if prompt := st.chat_input("Ask me anything..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"): st.markdown(prompt)
+    with st.chat_message("user"): st.write(prompt)
 
     with st.chat_message("assistant"):
-        # IMAGE LOGIC
+        # IMAGE GENERATION
         if any(x in prompt.lower() for x in ["draw", "generate", "image", "picture"]):
-            st.write("Ludy Generator is texturing the canvas...")
-            ludy = LudyGenerator(style_choice)
-            final_img = ludy.generate(prompt, model_choice)
-            
-            # Diffusion Effect
-            placeholder = st.empty()
-            for i in range(10):
-                blur = (10 - i) * 2
-                placeholder.image(final_img.filter(ImageFilter.GaussianBlur(radius=blur)))
-                time.sleep(0.1)
-            
-            st.session_state.messages.append({"role": "assistant", "content": "Created with Ludy Engine.", "image": final_img})
+            ludy = LudyGenerator()
+            img = ludy.generate(prompt, "Pro")
+            st.image(img, caption="Ludy is done rendering.")
+            st.session_state.messages.append({"role": "assistant", "content": "I painted this for you:", "image": img})
         
-        # CHAT LOGIC
+        # CONVERSATION & SEARCH
         else:
-            response = st.session_state.brain.reason_and_respond(prompt, model_choice)
-            st.markdown(response)
+            response = st.session_state.brain.get_response(prompt)
+            st.write(response)
             
-            if use_voice:
-                audio_path = speak_text(response.split("SmartBot Answer:")[-1])
-                if audio_path: st.audio(audio_path)
+            # AUDIO OUTPUT
+            clean_text = re.sub(r'[*#_]', '', response) # Clean markdown for voice
+            tts = gTTS(text=clean_text, lang='en')
+            tts.save("speech.mp3")
+            st.audio("speech.mp3", autoplay=True)
             
             st.session_state.messages.append({"role": "assistant", "content": response})
