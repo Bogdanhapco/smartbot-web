@@ -56,7 +56,7 @@ class LudyBrain:
 
         # Conversational Intelligence
         if any(w in p for w in ["hello", "hi", "salut", "buna"]):
-            return "Hello! I'm Ludy. I can help you research topics or generate high-detail art. What's on your mind?" if lang == "en" else "Salut! Sunt Ludy. Te pot ajuta cu cercetări sau artă detaliată. La ce te gândești?"
+            return "Hello! I'm SmartBot. I can help you research topics or generate high-detail art. What's on your mind?" if lang == "en" else "Salut! Sunt SmartBot. Te pot ajuta cu cercetări sau artă detaliată. La ce te gândești?"
         
         if any(w in p for w in ["how are you", "ce faci", "cum esti"]):
             return "I'm functioning at 100% capacity! Ready to create." if lang == "en" else "Funcționez la capacitate maximă! Sunt gata să creez."
@@ -133,8 +133,8 @@ class LudyRenderer:
 
 # --- STREAMLIT APP LOGIC ---
 with st.sidebar:
-    st.header("Ludy Core Settings")
-    model_choice = st.selectbox("Engine", ["Ludy 1.1 Flash", "Ludy 1.2 Pro"])
+    st.header("SmartBot Core Settings")
+    model_choice = st.selectbox("Engine", ["SmartBot 1.1 Flash", "SmartBot 1.2 Pro"])
     style_choice = st.selectbox("Artistic Texture", ["Realistic", "Cinematic", "Cyberpunk", "Oil Painting"])
     st.info("Pro Engine uses Deep Reasoning and 1024px Textures.")
 
@@ -183,3 +183,4 @@ if prompt := st.chat_input("Talk to Ludy or ask for a drawing..."):
             response = st.session_state.brain.respond(prompt, model_choice)
             st.markdown(response)
             st.session_state.messages.append({"role": "assistant", "content": response})
+
