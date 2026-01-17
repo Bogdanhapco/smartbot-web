@@ -270,13 +270,21 @@ class SmartChatEngine:
         lower = query.lower()
         
         if 'quantum' in lower:
-            return "Quantum computing uses quantum mechanics principles like superposition and entanglement to process information in ways classical computers cannot."
+            return "Quantum computing uses quantum mechanics principles like superposition and entanglement to process information in ways classical computers cannot. Quantum bits (qubits) can exist in multiple states simultaneously, enabling parallel computation."
         elif 'ai' in lower or 'artificial intelligence' in lower:
-            return "Artificial Intelligence refers to computer systems that can perform tasks typically requiring human intelligence, such as learning, reasoning, and problem-solving."
+            return "Artificial Intelligence refers to computer systems that can perform tasks typically requiring human intelligence, such as learning, reasoning, and problem-solving. Modern AI uses machine learning and neural networks to improve performance over time."
         elif 'climate' in lower:
-            return "Climate change refers to long-term shifts in global temperatures and weather patterns, primarily driven by human activities like fossil fuel consumption."
+            return "Climate change refers to long-term shifts in global temperatures and weather patterns, primarily driven by human activities like fossil fuel consumption, deforestation, and industrial processes."
+        elif 'electric' in lower and 'vehicle' in lower:
+            return "Electric vehicles use battery-powered electric motors instead of internal combustion engines. They offer zero direct emissions, lower operating costs, and instant torque. However, they face challenges with charging infrastructure and battery range."
+        elif 'hydrogen' in lower and ('fuel' in lower or 'vehicle' in lower):
+            return "Hydrogen fuel cell vehicles convert hydrogen gas into electricity through a chemical reaction, producing only water as a byproduct. They offer faster refueling than EVs but face infrastructure and production challenges."
+        elif 'drive' in lower and ('left' in lower or 'right' in lower):
+            return "The side of the road countries drive on is largely historical. Britain drove on the left due to sword-fighting conventions, and this spread to its colonies. Napoleon's conquests spread right-hand driving across Europe. Today, about 35% of countries drive on the left."
+        elif 'renewable' in lower or 'solar' in lower or 'wind' in lower:
+            return "Renewable energy sources include solar, wind, hydroelectric, and geothermal power. They produce minimal carbon emissions and are increasingly cost-competitive with fossil fuels."
         else:
-            return "That's an interesting question! I'd be happy to explore that topic with you. Could you tell me more specifically what aspect interests you?"
+            return "That's an interesting question! Based on my knowledge, this topic involves multiple factors to consider. Could you be more specific about what aspect interests you most?"
     
     def generate_conversational_response(self, user_input):
         """Generate engaging conversational responses"""
