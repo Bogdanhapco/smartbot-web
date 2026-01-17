@@ -5,181 +5,172 @@ import json
 import math
 import random
 import time
-from PIL import Image, ImageDraw, ImageFilter, ImageFont
+from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageEnhance
 import streamlit as st
 
 # --- CONFIGURATION & UI ---
 st.set_page_config(page_title="SmartBot AI - Ludy Engine", layout="centered", page_icon="🤖")
 
-# Custom CSS for that "AI Company" look
 st.markdown("""
     <style>
     .stChatMessage { border-radius: 15px; }
-    .stProgress > div > div > div > div { background-color: #00ffcc; }
+    .stProgress > div > div > div > div { background-color: #7000ff; }
+    .stSidebar { background-color: #0e1117; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- KNOWLEDGE & REASONING ENGINE ---
-class SmartChatEngine:
+# --- REASONING & WEB ENGINE ---
+class LudyBrain:
     def __init__(self):
-        self.history = []
-        self.language = "en"
+        self.romanian_keywords = ["ce", "cine", "cum", "unde", "este", "salut", "poti", "fa-mi", "scrie", "ajutor"]
     
-    def detect_language(self, text):
-        romanian_keywords = ["ce", "cine", "cum", "unde", "este", "salut", "poti", "fa-mi", "scrie"]
-        if any(w in text.lower().split() for w in romanian_keywords):
-            self.language = "ro"
-        else:
-            self.language = "en"
+    def get_lang(self, text):
+        return "ro" if any(w in text.lower().split() for w in self.romanian_keywords) else "en"
 
-    def search_web(self, query, model_type):
-        # Cleaning query for Wikipedia
-        search_query = query.lower()
-        for word in ["generate", "draw", "search", "what is", "ce este", "cine e"]:
-            search_query = search_query.replace(word, "").strip()
-        
+    def search_knowledge(self, query):
+        # Cleaning prompt for search
+        clean_q = re.sub(r'(generate|draw|search|imagine|arata-mi|fa-mi|ce este|cine e)', '', query.lower()).strip()
         try:
-            url = f"https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch={search_query.replace(' ', '%20')}&format=json"
+            url = f"https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch={clean_q.replace(' ', '%20')}&format=json"
             with urllib.request.urlopen(url, timeout=5) as r:
                 data = json.loads(r.read().decode())
-                if not data['query']['search']: return None, None
+                if not data['query']['search']: return None
                 title = data['query']['search'][0]['title']
             
-            # Fetch summary
-            summary_url = f"https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro&explaintext&titles={title.replace(' ', '_')}&format=json"
-            with urllib.request.urlopen(summary_url, timeout=5) as r:
-                data = json.loads(r.read().decode())
-                page = list(data['query']['pages'].values())[0]
-                return page.get('extract', ""), title
-        except:
-            return None, None
+            sum_url = f"https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro&explaintext&titles={title.replace(' ', '_')}&format=json"
+            with urllib.request.urlopen(sum_url, timeout=5) as r:
+                p_data = json.loads(r.read().decode())
+                page = list(p_data['query']['pages'].values())[0]
+                return page.get('extract', "")
+        except: return None
 
-    def respond(self, user_input, model_type):
-        self.detect_language(user_input)
+    def get_response(self, prompt, model):
+        lang = self.get_lang(prompt)
         
-        # 1. Anti-Coding Guardrail
-        code_triggers = ["python", "code", "javascript", "script", "html", "css", "program"]
-        if any(w in user_input.lower() for w in code_triggers):
-            return "I am still learning how to code, but I can help with anything else!" if self.language == "en" else "Încă învăț să programez, dar te pot ajuta cu orice altceva!"
+        # Guardrail: No Coding
+        if any(w in prompt.lower() for w in ["python", "code", "script", "html", "css", "program", "java"]):
+            return "I am a creative AI designed for chat and images, I don't write code yet!" if lang == "en" else "Sunt un AI creativ pentru chat și imagini, nu scriu cod încă!"
 
-        # 2. Personality & Greeting
-        if any(w in user_input.lower() for w in ["hello", "salut", "hi"]):
-            return f"Hello! I am SmartBot {model_type}. How can I assist you today?" if self.language == "en" else f"Salut! Sunt SmartBot {model_type}. Cu ce te pot ajuta astăzi?"
+        # Basic Chat & Web Logic
+        if any(w in prompt.lower() for w in ["hello", "hi", "salut", "buna"]):
+            return f"Hello! Ludy {model} here. Ready to create?" if lang == "en" else f"Salut! Sunt Ludy {model}. Ești gata să creăm ceva?"
 
-        # 3. Web Search & Reasoning
-        summary, topic = self.search_web(user_input, model_type)
-        if summary:
-            if model_type == "SmartBot 1.2 Pro":
-                prefix = f"Analyzing data for '{topic}'... \n\n" if self.language == "en" else f"Analizez datele pentru '{topic}'... \n\n"
-                return prefix + summary[:800] + "..."
-            return summary[:300] + "..."
-        
-        return "I'm thinking... but I couldn't find a specific web match. Could you rephrase?" if self.language == "en" else "Mă gândesc... dar nu am găsit un rezultat specific. Poți reformula?"
+        info = self.search_knowledge(prompt)
+        if info:
+            prefix = "According to my database: " if lang == "en" else "Conform bazei mele de date: "
+            return prefix + info[:500] + "..."
+            
+        return "I'm processing your request. Could you be more specific?" if lang == "en" else "Procesez cererea ta. Poți fi mai specific?"
 
-# --- IMAGE DIFFUSION RENDERER ---
+# --- IMAGE ENGINE (LUDY 1.1) ---
 class LudyRenderer:
-    def __init__(self, width, height):
-        self.width, self.height = width, height
-        
-    def add_watermark(self, img):
-        draw = ImageDraw.Draw(img)
-        text = "Generated with Ludy 1.1"
-        # Draw a small semi-transparent box at the bottom
-        draw.rectangle([0, self.height-30, self.width, self.height], fill=(0,0,0,150))
-        draw.text((10, self.height-25), text, fill=(200,200,200))
+    def __init__(self, style):
+        self.style = style
+
+    def apply_style(self, img):
+        if self.style == "Cinematic":
+            img = ImageEnhance.Contrast(img).enhance(1.5)
+            img = ImageEnhance.Color(img).enhance(1.2)
+        elif self.style == "Oil Painting":
+            img = img.filter(ImageFilter.SMOOTH_MORE)
+            img = ImageEnhance.Color(img).enhance(1.4)
+        elif self.style == "Sketch":
+            img = img.convert("L").filter(ImageFilter.CONTOUR)
+        elif self.style == "Cyberpunk":
+            # Add a neon tint
+            overlay = Image.new('RGB', img.size, (255, 0, 255)) # Pink
+            img = Image.blend(img, overlay, 0.15)
+            img = ImageEnhance.Contrast(img).enhance(1.8)
         return img
 
-    def render_scene(self, prompt):
-        img = Image.new('RGB', (self.width, self.height), color=(20, 20, 25))
+    def add_watermark(self, img):
+        draw = ImageDraw.Draw(img)
+        w, h = img.size
+        # Bottom bar
+        draw.rectangle([0, h-40, w, h], fill=(0, 0, 0, 180))
+        draw.text((20, h-30), "Generated with Ludy 1.1", fill=(255, 255, 255))
+        return img
+
+    def generate(self, prompt, model):
+        # Base colors
+        res = 1024 if "Pro" in model else 512
+        img = Image.new('RGB', (res, res), (30, 30, 40))
         draw = ImageDraw.Draw(img)
         p = prompt.lower()
 
-        # Simple Procedural logic based on keywords
-        # Sky/Background
-        sky_color = (135, 206, 235) if "day" in p else (10, 10, 40)
-        if "sunset" in p: sky_color = (255, 100, 50)
-        draw.rectangle([0, 0, self.width, self.height//2], fill=sky_color)
+        # Simple Procedural Shapes
+        # Sky/Ground
+        sky = (135, 206, 235) if "day" in p else (10, 10, 30)
+        draw.rectangle([0, 0, res, res//2], fill=sky)
+        draw.rectangle([0, res//2, res, res], fill=(50, 80, 50) if "forest" in p else (40, 40, 40))
         
-        # Ground
-        ground_color = (34, 139, 34) # Green
-        if "ocean" in p or "water" in p: ground_color = (0, 105, 148)
-        if "desert" in p: ground_color = (237, 201, 175)
-        draw.rectangle([0, self.height//2, self.width, self.height], fill=ground_color)
-
-        # Dynamic Objects (DALL-E style triggers)
-        if "sun" in p: draw.ellipse([self.width-100, 20, self.width-20, 100], fill="yellow")
-        if "mountain" in p: draw.polygon([(0,self.height//2), (self.width//2, 100), (self.width, self.height//2)], fill=(100,100,100))
-        if "house" in p: draw.rectangle([200, 250, 400, 450], fill="brown", outline="black")
-        if "car" in p: draw.rectangle([100, 400, 300, 460], fill="red" if "red" in p else "blue")
+        # Objects
+        if "mountain" in p: draw.polygon([(0, res//2), (res//2, res//4), (res, res//2)], fill=(100, 100, 110))
+        if "sun" in p: draw.ellipse([res-150, 50, res-50, 150], fill="yellow")
+        if "car" in p: draw.rectangle([res//3, res-200, res//3+200, res-120], fill="red")
         
+        img = self.apply_style(img)
         return self.add_watermark(img)
 
-# --- APP FLOW ---
-
-# Sidebar
+# --- APP LAYOUT ---
 with st.sidebar:
-    st.title("Ludy AI Dashboard")
-    model_choice = st.selectbox("Switch Model", ["SmartBot 1.1 Flash", "SmartBot 1.2 Pro"])
-    st.info(f"Currently active: {model_choice}")
-    st.write("Company: SmartBot AI Inc.")
+    st.image("https://cdn-icons-png.flaticon.com/512/2103/2103633.png", width=100)
+    st.title("Ludy Pro Dashboard")
+    model_choice = st.selectbox("Engine", ["SmartBot 1.1 Flash", "SmartBot 1.2 Pro"])
+    style_choice = st.selectbox("Art Style", ["Realistic", "Cinematic", "Cyberpunk", "Oil Painting", "Sketch"])
+    st.divider()
+    st.caption("© 2026 SmartBot AI Inc. | Ludy v1.1.2")
 
-# Main UI
 st.title(f"🤖 {model_choice}")
+st.write(f"Current Style: **{style_choice}**")
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
-if "engine" not in st.session_state:
-    st.session_state.engine = SmartChatEngine()
+if "brain" not in st.session_state:
+    st.session_state.brain = LudyBrain()
 
-# Display Messages
-for m in st.session_state.messages:
-    with st.chat_message(m["role"]):
-        st.write(m["content"])
-        if "image" in m:
-            st.image(m["image"])
+# Render History
+for msg in st.session_state.messages:
+    with st.chat_message(msg["role"]):
+        st.write(msg["content"])
+        if "image" in msg: st.image(msg["image"])
 
-# Input
-if prompt := st.chat_input("Talk to Ludy..."):
+# User Input
+if prompt := st.chat_input("Ask Ludy to draw or search..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.write(prompt)
+    with st.chat_message("user"): st.write(prompt)
 
-    # Check for Image Intent
-    if any(x in prompt.lower() for x in ["generate", "draw", "show me", "imagine"]):
+    # IMAGE GENERATION TRIGGER
+    if any(x in prompt.lower() for x in ["generate", "draw", "imagine", "arata-mi", "fa-mi"]):
         with st.chat_message("assistant"):
-            st.write("Initializing Diffusion Latents...")
+            st.write("Initializing Latent Diffusion Space...")
             progress = st.progress(0)
-            status = st.empty()
-            image_placeholder = st.empty()
+            img_placeholder = st.empty()
             
-            # Setup resolution
-            res = (1024, 1024) if "Pro" in model_choice else (512, 512)
-            renderer = LudyRenderer(res[0], res[1])
-            final_img = renderer.render_scene(prompt)
+            renderer = LudyRenderer(style_choice)
+            final_img = renderer.generate(prompt, model_choice)
             
-            # SIMULATED DIFFUSION EFFECT
-            steps = 15 if "Pro" in model_choice else 5
+            # THE DIFFUSION EFFECT (Blur to Clear)
+            steps = 12 if "Pro" in model_choice else 6
             for i in range(steps + 1):
-                # We simulate the diffusion by blurring the final image less and less
-                blur_radius = (steps - i) * 2
-                current_frame = final_img.filter(ImageFilter.GaussianBlur(radius=blur_radius))
+                blur_val = (steps - i) * 3
+                # Create blurry version
+                temp_img = final_img.filter(ImageFilter.GaussianBlur(radius=blur_val))
+                # Add "noise" dots
+                if i < steps/2:
+                    d = ImageDraw.Draw(temp_img)
+                    for _ in range(500): d.point([random.randint(0, final_img.width), random.randint(0, final_img.height)], fill="white")
                 
-                # Add "Salt and Pepper" noise to the early frames
-                if i < steps // 2:
-                    draw = ImageDraw.Draw(current_frame)
-                    for _ in range(1000):
-                        draw.point([random.randint(0, res[0]), random.randint(0, res[1])], fill="white")
-                
-                image_placeholder.image(current_frame, caption=f"Denoising Step {i}/{steps}...")
-                progress.progress(i / steps)
-                time.sleep(0.1)
+                img_placeholder.image(temp_img, caption=f"Sampling: Step {i}/{steps}")
+                progress.progress(i/steps)
+                time.sleep(0.15)
             
-            status.success("Image Finalized with Ludy 1.1 Engine")
-            st.session_state.messages.append({"role": "assistant", "content": "Generated image:", "image": final_img})
+            st.success("Rendering Complete.")
+            st.session_state.messages.append({"role": "assistant", "content": "Here is your creation:", "image": final_img})
     
+    # CHAT TRIGGER
     else:
-        # Standard Chat
         with st.chat_message("assistant"):
-            response = st.session_state.engine.respond(prompt, model_choice)
-            st.write(response)
-            st.session_state.messages.append({"role": "assistant", "content": response})
+            resp = st.session_state.brain.get_response(prompt, model_choice)
+            st.write(resp)
+            st.session_state.messages.append({"role": "assistant", "content": resp})
