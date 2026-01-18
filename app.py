@@ -397,7 +397,7 @@ def main():
     
     # Header
     st.title("🤖 SmartBot AI")
-    st.caption(f"Powered by {model} | Real AI Models via Hugging Face")
+    st.caption(f"Powered by {model} | Real AI Models via BotDevelomentAI")
     
     # Initialize session
     if 'messages' not in st.session_state:
@@ -472,3 +472,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
