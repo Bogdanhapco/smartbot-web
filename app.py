@@ -42,21 +42,21 @@ MODELS = {
     "Flash": {
         "name": "SmartBot 1.2 Flash",
         "display_name": "SmartBot 1.2 Flash",
-        "api_url": "https://api-inference.huggingface.co/models/meta-llama/Llama-3.2-3B-Instruct",
+        "api_url": "https://api-inference.huggingface.co/models/google/flan-t5-base",
         "max_tokens": 512,
         "temperature": 0.7,
     },
     "Pro": {
         "name": "SmartBot 2.1 Pro 7B",
         "display_name": "SmartBot 2.1 Pro 7B", 
-        "api_url": "https://api-inference.huggingface.co/models/meta-llama/Llama-3.2-11B-Vision-Instruct",
+        "api_url": "https://api-inference.huggingface.co/models/google/flan-t5-xxl",
         "max_tokens": 1024,
         "temperature": 0.8,
     }
 }
 
 # Image generation model
-IMAGE_MODEL_URL = "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell"
+IMAGE_MODEL_URL = "https://api-inference.huggingface.co/models/runwayml/stable-diffusion-v1-5"
 
 # --- COMPREHENSIVE OBJECT DATABASE ---
 OBJECTS = {
