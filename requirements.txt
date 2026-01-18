@@ -1,2 +1,4 @@
-streamlit
-huggingface_hub
+streamlit>=1.38.0
+openai>=1.40.0
+pillow>=10.4.0
+gtts>=2.5.3
