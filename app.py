@@ -40,13 +40,15 @@ except:
 # --- AI MODEL CONFIGURATION ---
 MODELS = {
     "Flash": {
-        "name": "SmartBot 1.1 Flash",
+        "name": "SmartBot 1.2 Flash",
+        "display_name": "SmartBot 1.2 Flash",
         "api_url": "https://api-inference.huggingface.co/models/microsoft/Phi-3-mini-4k-instruct",
         "max_tokens": 512,
         "temperature": 0.7,
     },
     "Pro": {
-        "name": "SmartBot 1.2 Pro", 
+        "name": "SmartBot 2.1 Pro 7B",
+        "display_name": "SmartBot 2.1 Pro 7B", 
         "api_url": "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2",
         "max_tokens": 1024,
         "temperature": 0.8,
@@ -150,19 +152,20 @@ class SmartBotAI:
         
     def create_system_prompt(self, model_type):
         """Create system prompt that makes AI identify as SmartBot"""
-        return f"""You are SmartBot {MODELS[model_type]['name']}, an advanced AI assistant. 
+        model_name = MODELS[model_type]['display_name']
+        return f"""You are {model_name}, an advanced AI assistant. 
 
 Key information about you:
-- Your name is SmartBot {MODELS[model_type]['name']}
+- Your name is {model_name}
 - You are a helpful, knowledgeable AI assistant
 - You can engage in conversations, answer questions, and provide information
 - You maintain a friendly and professional tone
-- When asked about your identity, always say you are SmartBot {MODELS[model_type]['name']}
+- When asked about your identity or what model you are, always say you are {model_name}
 
 Respond naturally and helpfully to the user's questions."""
 
     def call_ai_model(self, prompt, model_type):
-        """Call Hugging Face API"""
+        """Call Hugging Face API with fallback URLs"""
         if not self.api_token:
             return "❌ API token not configured. Please add your Hugging Face token to Streamlit secrets."
         
@@ -182,26 +185,42 @@ Respond naturally and helpfully to the user's questions."""
             }
         }
         
-        try:
-            response = requests.post(
-                model_config["api_url"],
-                headers=headers,
-                json=payload,
-                timeout=30
-            )
-            
-            if response.status_code == 200:
-                result = response.json()
-                if isinstance(result, list) and len(result) > 0:
-                    return result[0].get("generated_text", "").strip()
-                return str(result)
-            elif response.status_code == 503:
-                return "⏳ Model is loading... Please try again in a moment."
-            else:
-                return f"❌ Error: {response.status_code} - {response.text}"
+        # Try both old and new API endpoints
+        api_urls = [
+            model_config["api_url"],
+            model_config["api_url"].replace("api-inference", "router")  # New endpoint
+        ]
+        
+        last_error = None
+        for api_url in api_urls:
+            try:
+                response = requests.post(
+                    api_url,
+                    headers=headers,
+                    json=payload,
+                    timeout=30
+                )
                 
-        except Exception as e:
-            return f"❌ Error connecting to AI: {str(e)}"
+                if response.status_code == 200:
+                    result = response.json()
+                    if isinstance(result, list) and len(result) > 0:
+                        return result[0].get("generated_text", "").strip()
+                    return str(result)
+                elif response.status_code == 503:
+                    return "⏳ Model is loading... Please try again in 20-30 seconds."
+                elif response.status_code == 410:
+                    # Endpoint deprecated, try next URL
+                    continue
+                else:
+                    last_error = f"Error: {response.status_code}"
+                    continue
+                    
+            except Exception as e:
+                last_error = str(e)
+                continue
+        
+        # If all attempts failed
+        return f"❌ Unable to connect to AI model. Please try again. ({last_error})"
     
     def respond(self, user_input, model_type):
         """Get AI response"""
@@ -356,7 +375,7 @@ def main():
         st.header("⚙️ Model Configuration")
         model = st.radio(
             "Select Model:",
-            ("SmartBot 1.1 Flash", "SmartBot 1.2 Pro"),
+            ("SmartBot 1.2 Flash", "SmartBot 2.1 Pro 7B"),
             index=1
         )
         
@@ -365,9 +384,9 @@ def main():
         st.markdown("---")
         st.markdown("### Model Features")
         if model_type == "Flash":
-            st.info("**Model**: Microsoft Phi-3\n\n**Speed**: Ultra-fast\n\n**Best for**: Quick questions")
+            st.info(f"**Model**: {MODELS['Flash']['display_name']}\n\n**Speed**: Ultra-fast\n\n**Best for**: Quick questions")
         else:
-            st.success("**Model**: Mistral 7B\n\n**Intelligence**: Advanced\n\n**Best for**: Complex reasoning")
+            st.success(f"**Model**: {MODELS['Pro']['display_name']}\n\n**Intelligence**: Advanced\n\n**Best for**: Complex reasoning")
         
         st.markdown("---")
         st.markdown("### Features")
