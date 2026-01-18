@@ -1,4 +1,2 @@
 streamlit
 huggingface_hub
-Pillow
-gTTS
